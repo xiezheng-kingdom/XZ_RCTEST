@@ -1,0 +1,9 @@
+file c:/Users/Xiezheng_kingdom/Desktop/PZtest/build/H7_Arm.elf
+target extended-remote localhost:3333
+monitor reset halt
+monitor arm semihosting enable
+load
+continue
+shell sleep 6
+interrupt
+quit
