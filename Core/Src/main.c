@@ -24,7 +24,7 @@
 /* USER CODE BEGIN PD */
 
 /* ---------------- VOFA+ JustFloat 协议 ---------------- */
-#define CH_COUNT 2                      /* 通道数：占空比(%) + 当前角度(°) */
+#define CH_COUNT 3                      /* 通道数：底座角度 + 俯仰角度 + 保护区状态 */
 typedef struct {
     float         fdata[CH_COUNT];
     unsigned char tail[4];              /* 00 00 80 7F = +Inf，帧尾标识 */
@@ -34,12 +34,15 @@ typedef struct {
 _Static_assert(sizeof(VofaFrame) == sizeof(float) * CH_COUNT + 4U,
                "VofaFrame has unexpected padding");
 
-/* ---------------- 舵机参数 (PD15 = TIM4_CH4) ---------------- */
-#define SERVO_ANGLE_MIN   (-90.0f)      /* 最小角，对应 0.5ms 脉宽 */
+/* ---------------- 二自由度云台参数 ---------------- */
+#define SERVO_ANGLE_MIN   (-90.0f)      /* 最小角，对应 0.5ms 脉宽（脉宽映射范围） */
 #define SERVO_ANGLE_MAX   ( 90.0f)      /* 最大角，对应 2.5ms 脉宽 */
-#define SERVO_PWM_ARR     (20000.0f)    /* ARR+1，用于算占空比 */
 #define SERVO_SLEW_STEP   (1.0f)        /* 每周期转过多少度 -> 50°/s */
 #define CTRL_PERIOD_MS    (20U)         /* 主循环周期，与 PWM 周期一致 */
+
+/* ---------------- 保护区：只接受 ±30° 以内的目标角 ---------------- */
+#define PROTECT_ANGLE_MIN (-30.0f)
+#define PROTECT_ANGLE_MAX ( 30.0f)
 
 uint8_t PC_RXbuff[50];    // 上位机接收缓冲区 (USART2)
 uint8_t Car_RXbuff[50];   // 小车接收缓冲区 (UART5)
@@ -48,9 +51,26 @@ uint8_t Car_RXbuff[50];   // 小车接收缓冲区 (UART5)
 static volatile uint8_t rx_line_ready = 0;
 static char             rx_line[32];
 
-/* 舵机状态 */
-static float target_angle  = 0.0f;      /* VOFA+ 下发的目标角度 */
-static float current_angle = 0.0f;      /* 当前输出角度，按斜坡跟随目标 */
+/* 云台轴：两轴共用同一套 -90~+90 / 500~2500us 约定，只有定时器通道不同 */
+typedef struct {
+    TIM_HandleTypeDef *htim;
+    uint32_t           channel;
+    float              target;          /* VOFA+ 下发的目标角度 */
+    float              current;         /* 当前输出角度，按斜坡跟随 target */
+} GimbalAxis;
+
+#define GIMBAL_AXIS_COUNT (2U)
+
+/* [0] 底座水平偏转 PD15 = TIM4_CH4；[1] 俯仰角 PD14 = TIM4_CH3 */
+static GimbalAxis gimbal[GIMBAL_AXIS_COUNT] = {
+    { &htim4, TIM_CHANNEL_4, 0.0f, 0.0f },
+    { &htim4, TIM_CHANNEL_3, 0.0f, 0.0f },
+};
+
+/* 保护区状态：被拦下过的轴夹到边界，本标志置 1，
+   直到下一条两轴都合法的指令才清零 —— 回传帧第 3 通道 */
+static float gimbal_error = 0.0f;
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -85,24 +105,78 @@ static uint32_t servo_angle_to_pulse(float angle)
 }
 
 /**
-  * @brief  角度 -> 占空比百分比
-  * @note   脉宽 500~2500 / 周期 20000 -> 2.5% ~ 12.5%
+  * @brief  把角度夹进保护区，超限就记一笔状态
+  * @note   超限只影响这一根轴：夹到 ±30 边界、置 gimbal_error，
+  *         同一行里没超限的轴不受牵连
   */
-static float servo_angle_to_duty(float angle)
+static float servo_protect_angle(float angle)
 {
-    return (float)servo_angle_to_pulse(angle) / SERVO_PWM_ARR * 100.0f;
+    if (angle < PROTECT_ANGLE_MIN) { gimbal_error = 1.0f; return PROTECT_ANGLE_MIN; }
+    if (angle > PROTECT_ANGLE_MAX) { gimbal_error = 1.0f; return PROTECT_ANGLE_MAX; }
+    return angle;
+}
+
+/**
+  * @brief  解析上位机下发的一行 "底座角,俯仰角"
+  * @note   两个数各自可选：只发一个数时另一轴保持不动；
+  *         行首不是数就整行丢弃，避免把乱码当成 0° 指令
+  */
+static void gimbal_parse_target(const char *line)
+{
+    char       *end = NULL;
+    const float pan = strtof(line, &end);
+
+    if (end == line) return;                    /* 行首不是数，整行丢弃 */
+
+    gimbal_error = 0.0f;                        /* 新指令：先清状态，超限时再置位 */
+    gimbal[0].target = servo_protect_angle(pan);
+
+    const char *rest = end;
+    while (*rest == ',' || *rest == ' ' || *rest == '\t') ++rest;
+    if (*rest == '\0') return;                  /* 只发了底座角 */
+
+    const float tilt = strtof(rest, &end);
+    if (end == rest) return;                    /* 逗号后面不是数，俯仰保持 */
+    gimbal[1].target = servo_protect_angle(tilt);
+}
+
+/**
+  * @brief  两轴非阻塞斜坡，并顺手更新各自的 PWM 比较值
+  */
+static void gimbal_update(void)
+{
+    for (uint32_t i = 0; i < GIMBAL_AXIS_COUNT; ++i)
+    {
+        GimbalAxis *axis = &gimbal[i];
+
+        if (axis->current < axis->target)
+        {
+            axis->current += SERVO_SLEW_STEP;
+            if (axis->current > axis->target) axis->current = axis->target;
+        }
+        else if (axis->current > axis->target)
+        {
+            axis->current -= SERVO_SLEW_STEP;
+            if (axis->current < axis->target) axis->current = axis->target;
+        }
+
+        __HAL_TIM_SetCompare(axis->htim, axis->channel,
+                             servo_angle_to_pulse(axis->current));
+    }
 }
 
 /**
   * @brief  向 VOFA+ 回传一帧 JustFloat 数据
-  * @note   帧结构：float fdata[2] + 00 00 80 7F，共 12 字节，小端
+  * @note   帧结构：float fdata[3] + 00 00 80 7F，共 16 字节，小端
+  *         error 通道：1.0 = 保护区刚拦下过目标角，0.0 = 正常
   */
-static void vofa_send(float duty, float angle)
+static void vofa_send(float pan, float tilt, float error)
 {
     VofaFrame frame;
 
-    frame.fdata[0] = duty;
-    frame.fdata[1] = angle;
+    frame.fdata[0] = pan;
+    frame.fdata[1] = tilt;
+    frame.fdata[2] = error;
     frame.tail[0] = 0x00;
     frame.tail[1] = 0x00;
     frame.tail[2] = 0x80;
@@ -187,9 +261,13 @@ int main(void)
   /* 不再调用 servo.c 的 pwm_start()/servo_reset_begin()：
      servo.c 会往 TIM4_CH4 (PD15) 写 pulse_6，与本文件的 VOFA 控制抢同一个通道 */
 
-  /* PD15 (TIM4_CH4) 舵机 PWM 启动，初始停在中位 */
-  __HAL_TIM_SetCompare(&htim4, TIM_CHANNEL_4, servo_angle_to_pulse(current_angle));
-  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+  /* 两轴舵机 PWM 启动：PD15(TIM4_CH4) 底座、PD14(TIM4_CH3) 俯仰，初始都停在中位 */
+  for (uint32_t i = 0; i < GIMBAL_AXIS_COUNT; ++i)
+  {
+    __HAL_TIM_SetCompare(gimbal[i].htim, gimbal[i].channel,
+                         servo_angle_to_pulse(gimbal[i].current));
+    HAL_TIM_PWM_Start(gimbal[i].htim, gimbal[i].channel);
+  }
 
   /* 开启两路接收 */
   HAL_UARTEx_ReceiveToIdle_IT(&huart2, PC_RXbuff, sizeof(PC_RXbuff));
@@ -205,7 +283,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
     const uint32_t tick = HAL_GetTick();
 
-    /* --- 1. 解析 VOFA+ 下发的目标角度（ASCII 文本，如 "45.5"） --- */
+    /* --- 1. 解析 VOFA+ 下发的目标角度（ASCII 文本，如 "45,-30"） --- */
     if (rx_line_ready)
     {
         char snapshot[sizeof(rx_line)];
@@ -215,36 +293,16 @@ int main(void)
         rx_line_ready = 0;
         __enable_irq();
 
-        char *end = NULL;
-        const float value = strtof(snapshot, &end);
-
-        if (end != snapshot)                    /* 至少解出一个数才认 */
-        {
-            if (value < SERVO_ANGLE_MIN)      target_angle = SERVO_ANGLE_MIN;
-            else if (value > SERVO_ANGLE_MAX) target_angle = SERVO_ANGLE_MAX;
-            else                              target_angle = value;
-        }
+        gimbal_parse_target(snapshot);
     }
 
-    /* --- 2. 非阻塞斜坡：当前角度逐周期逼近目标 --- */
-    if (current_angle < target_angle)
-    {
-        current_angle += SERVO_SLEW_STEP;
-        if (current_angle > target_angle) current_angle = target_angle;
-    }
-    else if (current_angle > target_angle)
-    {
-        current_angle -= SERVO_SLEW_STEP;
-        if (current_angle < target_angle) current_angle = target_angle;
-    }
+    /* --- 2. 两轴斜坡跟随，并更新 PD15 / PD14 的 PWM 比较值 --- */
+    gimbal_update();
 
-    /* --- 3. 更新 PD15 的 PWM 比较值 --- */
-    __HAL_TIM_SetCompare(&htim4, TIM_CHANNEL_4, servo_angle_to_pulse(current_angle));
+    /* --- 3. 回传 JustFloat 帧：[底座角度, 俯仰角度, 保护区状态] --- */
+    vofa_send(gimbal[0].current, gimbal[1].current, gimbal_error);
 
-    /* --- 4. 回传 JustFloat 帧：[占空比%, 当前角度] --- */
-    vofa_send(servo_angle_to_duty(current_angle), current_angle);
-
-    /* --- 5. 对齐到固定周期，保证 VOFA+ 采样率稳定 --- */
+    /* --- 4. 对齐到固定周期，保证 VOFA+ 采样率稳定 --- */
     while ((HAL_GetTick() - tick) < CTRL_PERIOD_MS) { }
   }
   /* USER CODE END 3 */
