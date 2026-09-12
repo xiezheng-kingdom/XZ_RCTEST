@@ -241,8 +241,7 @@ void MX_USART3_UART_Init(void)
   /* BRR: 100MHz/115200 → USARTDIV=54.253 → 0x364
    *
    * ⚠️ 这里原本写的是 0x28B1 (9600bps), 是 HC06 还接在 USART3 的年代留下的。
-   *    现在 HC06 在 USART2 (见 hc06.c: HC06_UART = &huart2), USART3 只用于
-   *    printf 和 VOFA 遥测, 所以必须按 115200 配。
+   *    HC06 模块已删除, USART3 现在只用于 printf 和 VOFA 遥测, 必须按 115200 配。
    *
    *    9600 的后果不是报错而是"静默变慢": 一帧 6 float + 4 字节帧尾 = 28 字节,
    *    在 9600 下要 29ms 才发完 (HAL_UART_Transmit 超时给的 100ms, 所以不会

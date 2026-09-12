@@ -252,8 +252,7 @@ void TIM5_IRQHandler(void)
   /* USER CODE BEGIN TIM5_IRQn 0 */
 
   /* USER CODE END TIM5_IRQn 0 */
-  extern void US_IRQ_Handler(void);
-  US_IRQ_Handler();
+
   /* USER CODE BEGIN TIM5_IRQn 1 */
 
   /* USER CODE END TIM5_IRQn 1 */

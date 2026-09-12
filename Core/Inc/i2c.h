@@ -39,9 +39,7 @@ extern I2C_HandleTypeDef hi2c2;
 /* I2C1 → OLED   (PB8=SCL, PB9=SDA) */
 #define OLED_I2C_ADDR   0x78   /* SSD1309, 7-bit:0x3C */
 
-/* I2C2 → MPU6050 (PB10=SCL, PB11=SDA) */
-#define MPU6050_I2C_ADDR 0xD0  /* MPU6050, 7-bit:0x68 */
-#define USE_MPU6050      1     /* 1=启用 MPU6050 */
+/* I2C2 → MPU6050 (PB10=SCL, PB11=SDA) —— MPU6050 模块已删除, 这两个宏随之移除 */
 /* USER CODE END Private defines */
 
 void MX_I2C1_Init(void);
