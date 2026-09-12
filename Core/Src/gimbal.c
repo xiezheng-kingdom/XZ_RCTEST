@@ -106,7 +106,8 @@ static void mpu_update(void)
     s_pitch = clamp_angle(GIMBAL_MPU_PITCH_SIGN * pitch);
 
     /* --- 偏航: 陀螺仪 Z 轴积分 ---
-     * 右手系下绕 +Z 正向旋转 = 机头由 X 转向 Y(右), 所以 gz>0 即右转。
+     * 机头右转 = 偏航角变正(约定), 本板上对应 g_z 为负, 极性由
+     * GIMBAL_GYRO_SIGN 兜住。
      * 陀螺仪积分是相对角, 会缓慢漂移 —— 这是本方案的固有代价
      * (加速度计测不出绕重力轴的转角), 靠死区 + 限幅兜住。 */
     float gz = MPU6050_GetGz() * GIMBAL_GYRO_SIGN;

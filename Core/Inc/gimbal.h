@@ -33,10 +33,21 @@ extern "C" {
 /* ----------------------------------------------------------------
  * 极性标定: 上电实测, 哪个轴方向反了就把对应符号改成 -1.0f
  * ---------------------------------------------------------------- */
+
+/* 2026-09-12 实测标定, 两个轴都靠台架实测翻转, 勿凭推导改回来:
+ *
+ * 俯仰: 机头下压(俯冲) 47.7° 时读到 a_x = +0.724, a_y ≈ 0, a_z = +0.659
+ * (合矢量 0.979g)。下俯本应给出 a_x = -sinθ(负), 实测为正, 即模块 X 轴指向
+ * 机尾 —— 故 GIMBAL_MPU_PITCH_SIGN 取 -1.0f。
+ *
+ * 偏航: 机头右转时上位机读到的偏航角为负。这就是 g_z 的极性, 直接靠实测翻,
+ * 绕 Z 轴安装姿态如何推导都不作数 —— GIMBAL_GYRO_SIGN 取 -1.0f。
+ *
+ * 电位器两轴尚未标定, 仍是初值 +1.0f。 */
 #define GIMBAL_POT_YAW_SIGN    (+1.0f)
 #define GIMBAL_POT_PITCH_SIGN  (+1.0f)
-#define GIMBAL_MPU_PITCH_SIGN  (+1.0f)
-#define GIMBAL_GYRO_SIGN       (+1.0f)
+#define GIMBAL_MPU_PITCH_SIGN  (-1.0f)
+#define GIMBAL_GYRO_SIGN       (-1.0f)
 
 /* 静止死区 (°/s): 抑制陀螺仪零偏积分漂移 */
 #define GIMBAL_GYRO_DEADBAND   (0.5f)
