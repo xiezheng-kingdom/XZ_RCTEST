@@ -1,0 +1,22 @@
+target extended-remote localhost:3333
+monitor reset halt
+x/1i $pc
+info registers pc msp xpsr
+monitor mrw 0x58024400
+monitor mrw 0x58024410
+monitor mrw 0x58024414
+monitor mrw 0x58024430
+monitor mrw 0x58024440
+monitor mrw 0x58024444
+monitor mrw 0x580244E0
+monitor mrw 0x58020C00
+monitor mrw 0x58020C20
+monitor mrw 0x58020C24
+monitor mrw 0x40004800
+monitor mrw 0x4000480C
+monitor mrw 0x4000481C
+monitor mrw 0x40004828
+monitor mrw 0xE000E100
+monitor mrw 0xE000E104
+disconnect
+quit

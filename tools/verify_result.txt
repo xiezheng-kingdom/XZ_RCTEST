@@ -1,0 +1,23 @@
+=== Reset state ===
+PC: pc (/32): 0x08001444
+
+=== Running 3 seconds ===
+
+=== After 3s ===
+PC: pc (/32): 0x08004cac
+SP: sp (/32): 0x2001ff70
+LR: lr (/32): 0x08004cb1
+
+=== Fault ===
+CFSR: 0xe000ed28: 00000000 
+HFSR: 0xe000ed2c: 00000000 
+ICSR: 0xe000ed04: 00000000 
+
+=== USART3 ===
+USART3_CR1: 0x40004800: 00000009 
+USART3_BRR: 0x4000480c: 0000008b 
+USART3_ISR: 0x4000481c: 002000c0 
+
+=== I2C1 ===
+I2C1_CR1: 0x40005400: 00000001 
+I2C1_ISR: 0x40005418: 00000001 
