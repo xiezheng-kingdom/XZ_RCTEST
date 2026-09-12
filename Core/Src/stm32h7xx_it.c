@@ -244,21 +244,6 @@ void UART7_IRQHandler(void)
   /* USER CODE END UART7_IRQn 1 */
 }
 
-/**
-  * @brief This function handles TIM5 global interrupt (超声波输入捕获).
-  */
-void TIM5_IRQHandler(void)
-{
-  /* USER CODE BEGIN TIM5_IRQn 0 */
-
-  /* USER CODE END TIM5_IRQn 0 */
-  extern void US_IRQ_Handler(void);
-  US_IRQ_Handler();
-  /* USER CODE BEGIN TIM5_IRQn 1 */
-
-  /* USER CODE END TIM5_IRQn 1 */
-}
-
 /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */

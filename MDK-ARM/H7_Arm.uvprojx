@@ -430,11 +430,6 @@
               <FilePath>../Core/Src/stm32h7xx_hal_msp.c</FilePath>
             </File>
             <File>
-              <FileName>openmv.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Core/Src/openmv.c</FilePath>
-            </File>
-            <File>
               <FileName>servo.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/servo.c</FilePath>

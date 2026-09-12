@@ -45,20 +45,7 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/obstacle.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/ultrasonic.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/kalman.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/pid.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/ir_sensor.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/oled.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/road_map.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/hc06.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/mpu6050.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/cargo.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/error_log.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/localization.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/nav.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_control.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/can.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/can1.c
