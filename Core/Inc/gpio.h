@@ -34,6 +34,14 @@ extern "C" {
 
 /* USER CODE BEGIN Private defines */
 
+/* 云台模式切换按键: PE3, 按下接地 → 内部上拉 */
+#define GIMBAL_KEY_PORT   GPIOE
+#define GIMBAL_KEY_PIN    GPIO_PIN_3
+
+/* 云台模式指示灯: PC5, 高电平点亮 = MPU6050 模式 */
+#define GIMBAL_LED_PORT   GPIOC
+#define GIMBAL_LED_PIN    GPIO_PIN_5
+
 /* USER CODE END Private defines */
 
 void MX_GPIO_Init(void);

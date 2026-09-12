@@ -1,6 +1,5 @@
 #include "hc06.h"
 #include "usart.h"
-#include "cargo.h"
 #include "string.h"
 #include "stdio.h"
 
@@ -145,12 +144,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 }
 
 /* ================================================================
- * HC06_Process — 接收字节 → 交给 Cargo (由cargo.c统一解析)
+ * HC06_Process — 排空接收缓冲
+ *
+ * 原实现把字节交给 Cargo 解析, cargo 模块已随云台精简一起移除。
+ * 保留这个排空动作: 只要 HC06_Init() 开了 RX 中断, 环形缓冲就会被
+ * 持续写入, 不排空的话写满后新字节会被直接丢掉(丢弃逻辑见
+ * HC06_RxCallback), 更重要的是调用方无从判断链路是否还活着。
+ * 将来要用蓝牙收指令, 在这里换成自己的解析即可。
  * ================================================================ */
 void HC06_Process(void)
 {
     while (HC06_Available() > 0) {
-        uint8_t c = HC06_ReceiveByte();
-        Cargo_FeedByte(c);
+        (void)HC06_ReceiveByte();
     }
 }

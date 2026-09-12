@@ -43,23 +43,13 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 )
 
 # Add sources to executable
+# 其余源文件 (main/gpio/adc/i2c/tim/usart/it/hal_msp/sysmem/syscalls/startup)
+# 由 cmake/stm32cubemx/CMakeLists.txt 的 MX_Application_Src 引入。
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/obstacle.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/ultrasonic.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/kalman.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/pid.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/ir_sensor.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/oled.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/road_map.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/gimbal.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/hc06.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/mpu6050.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/cargo.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/error_log.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/localization.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/nav.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_control.c
 )
 
 # Add include paths
